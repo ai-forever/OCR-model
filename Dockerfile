@@ -6,7 +6,7 @@ RUN apt-get update &&\
     apt-get -y install \
     build-essential yasm nasm cmake \
     git htop tmux \
-    python3 python3-pip python3-dev python3-setuptools &&\
+    python3 python3-pip python3-dev python3-setuptools python3-opencv &&\
     ln -s /usr/bin/python3 /usr/bin/python &&\
     ln -sf /usr/bin/pip3 /usr/bin/pip &&\
     apt-get clean &&\
@@ -37,7 +37,7 @@ RUN pip3 install --no-cache-dir \
     notebook==6.4.0 \
     Pillow==8.1.2
 
-
+ENV PYTHONPATH $PYTHONPATH:/workdir
 ENV TORCH_HOME=/workdir/data/.torch
 ENV LANG C.UTF-8
 
