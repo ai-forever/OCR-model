@@ -1,22 +1,40 @@
 {
     "alphabet": " !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~«»ЁАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё№",
+    "save_dir": "/workdir/data/experiments/test",
+    "num_epochs": 500,
+    "pretrain_path": "",
+    "image": {
+        "width": 300,
+        "height": 32
+    },
     "train": {
         "datasets": [
             {
                 "csv_path": "/workdir/data/hkr_hw_lines/train.csv",
-                "prob": 0.5
+                "prob": 1
             },
             {
                 "csv_path": "/workdir/data/idp_forms/train.csv",
-                "prob": 0.5
+                "prob": 1
             }
 
         ],
-        "epoch_size": 5000,
-        "batch_size": 128
+        "epoch_size": 20000,
+        "batch_size": 64
     },
-    "image": {
-        "image_width": 300,
-        "image_height": 32
+    "val": {
+        "datasets": [
+            {
+                "csv_path": "/workdir/data/hkr_hw_lines/val.csv",
+                "prob": 1
+            },
+            {
+                "csv_path": "/workdir/data/idp_forms/val.csv",
+                "prob": 1
+            }
+
+        ],
+        "epoch_size": null,
+        "batch_size": 64
     }
 }

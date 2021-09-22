@@ -7,7 +7,7 @@ import pandas as pd
 import pathlib
 import cv2
 
-from encoder import get_char_map, Encoder
+from tokenizer import Tokenizer
 
 
 class SequentialSampler(Sampler):
@@ -144,22 +144,21 @@ class DataPreprocess:
         csv_paths (list): A list of the dataset csv paths.
         dataset_probs (list of float): A list of dataset sample probs
             corresponding to the datasets from csv_paths list.
-        alphabet (str): Characters to be used in the model.
+        tokenizer (ocr.tokenizer.Tokenizer): Tokenizer class.
 
     Return:
         data (pandas.DataFrame): Preprocessed dataset.
     """
 
-    def __init__(self, csv_paths, dataset_probs, alphabet):
+    def __init__(self, csv_paths, dataset_probs, tokenizer):
         self.csv_paths = csv_paths
         self.dataset_prob2sample_prob = DatasetProb2SampleProb(
             self.csv_paths, dataset_probs)
-        char_map = get_char_map(alphabet)
-        self.encoder = Encoder(char_map)
+        self.tokenizer = tokenizer
 
     def __call__(self):
         data = read_and_concat_datasets(self.csv_paths)
-        data['enc_text'] = self.encoder.encode(data['text'].values)
+        data['enc_text'] = self.tokenizer.encode(data['text'].values)
         data = self.dataset_prob2sample_prob(data)
         return data
 

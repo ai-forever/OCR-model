@@ -11,13 +11,13 @@ def get_char_map(alphabet):
     return char_map
 
 
-class Encoder:
-    """Class for encoding and decoding strint word to sequence of int
-    (and vice versa) using char_map."""
+class Tokenizer:
+    """Class for encoding and decoding string word to sequence of int
+    (and vice versa) using alphabet."""
 
-    def __init__(self, char_map):
-        self.char_map = char_map
-        self.rev_char_map = {val: key for key, val in char_map.items()}
+    def __init__(self, alphabet):
+        self.char_map = get_char_map(alphabet)
+        self.rev_char_map = {val: key for key, val in self.char_map.items()}
 
     def encode(self, word_list):
         """Returns a list of encoded words (int)."""
@@ -29,6 +29,9 @@ class Encoder:
                  for char in word]
             )
         return enc_words
+
+    def get_num_chars(self):
+        return len(self.char_map)
 
     def decode(self, enc_word_list):
         """Returns a list of words (str) after removing blanks and collapsing
