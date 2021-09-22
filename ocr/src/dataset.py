@@ -7,7 +7,7 @@ import pandas as pd
 import pathlib
 import cv2
 
-from ocr.tokenizer import Tokenizer
+from ocr.src.tokenizer import Tokenizer
 
 
 class SequentialSampler(Sampler):

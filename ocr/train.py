@@ -10,14 +10,14 @@ from utils.utils import (
     load_pretrain_model, FilesLimitControl, AverageMeter, sec2min
 )
 
-from ocr.dataset import (
+from ocr.src.dataset import (
     OCRDataset, DataPreprocess, collate_fn, SequentialSampler
 )
-from ocr.utils import val_loop
-from ocr.transforms import get_train_transforms, get_val_transforms
-from ocr.tokenizer import Tokenizer
-from ocr.config import Config
-from ocr.models import CRNN
+from ocr.src.utils import val_loop
+from ocr.src.transforms import get_train_transforms, get_val_transforms
+from ocr.src.tokenizer import Tokenizer
+from ocr.src.config import Config
+from ocr.src.models import CRNN
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 

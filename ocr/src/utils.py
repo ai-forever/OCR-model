@@ -2,9 +2,9 @@ import torch
 import time
 from tqdm import tqdm
 
-from ocr.metrics import get_accuracy
-
 from utils.utils import AverageMeter, sec2min
+
+from ocr.src.metrics import get_accuracy
 
 
 def val_loop(data_loader, model, tokenizer, device):
