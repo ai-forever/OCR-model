@@ -11,7 +11,7 @@ from utils.utils import (
 )
 
 from ocr.src.dataset import (
-    OCRDataset, DataPreprocess, collate_fn, SequentialSampler
+    OCRDataset, DataPreprocess, collate_fn, SequentialSampler, get_data_loader
 )
 from ocr.src.utils import val_loop
 from ocr.src.transforms import get_train_transforms, get_val_transforms
@@ -50,40 +50,13 @@ def train_loop(data_loader, model, criterion, optimizer, epoch):
     return loss_avg.avg
 
 
-def get_loader(
-    transforms, csv_paths, tokenizer, dataset_probs, epoch_size,
-    batch_size, drop_last
-):
-    data_process = DataPreprocess(
-        csv_paths=csv_paths,
-        tokenizer=tokenizer,
-        dataset_probs=dataset_probs
-    )
-    data = data_process()
-    dataset = OCRDataset(data, transforms)
-    sampler = SequentialSampler(
-        dataset_len=len(data),
-        epoch_size=epoch_size,
-        init_sample_probs=data['sample_prob'].values
-    )
-    batcher = torch.utils.data.BatchSampler(sampler, batch_size=batch_size,
-                                            drop_last=drop_last)
-    data_loader = torch.utils.data.DataLoader(
-        dataset=dataset,
-        collate_fn=collate_fn,
-        batch_sampler=batcher,
-        num_workers=8,
-    )
-    return data_loader
-
-
 def get_loaders(tokenizer, config):
     train_transforms = get_train_transforms(
         height=config.get_image('height'),
         width=config.get_image('width'),
         prob=0.2
     )
-    train_loader = get_loader(
+    train_loader = get_data_loader(
         transforms=train_transforms,
         csv_paths=config.get_train_datasets('csv_path'),
         tokenizer=tokenizer,
@@ -96,7 +69,7 @@ def get_loaders(tokenizer, config):
         height=config.get_image('height'),
         width=config.get_image('width')
     )
-    val_loader = get_loader(
+    val_loader = get_data_loader(
         transforms=val_transforms,
         csv_paths=config.get_val_datasets('csv_path'),
         tokenizer=tokenizer,

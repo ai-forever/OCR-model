@@ -7,8 +7,6 @@ import pandas as pd
 import pathlib
 import cv2
 
-from ocr.src.tokenizer import Tokenizer
-
 
 class SequentialSampler(Sampler):
     """Make sequence of dataset indexes for batch sampler.
@@ -91,6 +89,33 @@ def read_and_concat_datasets(csv_paths):
         data.append(csv_data[['filename', 'dataset_name', 'text']])
     data = pd.concat(data, ignore_index=True)
     return data
+
+
+def get_data_loader(
+    transforms, csv_paths, tokenizer, dataset_probs, epoch_size,
+    batch_size, drop_last
+):
+    data_process = DataPreprocess(
+        csv_paths=csv_paths,
+        tokenizer=tokenizer,
+        dataset_probs=dataset_probs
+    )
+    data = data_process()
+    dataset = OCRDataset(data, transforms)
+    sampler = SequentialSampler(
+        dataset_len=len(data),
+        epoch_size=epoch_size,
+        init_sample_probs=data['sample_prob'].values
+    )
+    batcher = torch.utils.data.BatchSampler(sampler, batch_size=batch_size,
+                                            drop_last=drop_last)
+    data_loader = torch.utils.data.DataLoader(
+        dataset=dataset,
+        collate_fn=collate_fn,
+        batch_sampler=batcher,
+        num_workers=8,
+    )
+    return data_loader
 
 
 class DatasetProb2SampleProb:
