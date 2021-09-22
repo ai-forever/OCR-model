@@ -35,6 +35,21 @@
 
         ],
         "epoch_size": null,
-        "batch_size": 64
+        "batch_size": 128
+    },
+    "test": {
+        "datasets": [
+            {
+                "csv_path": "/workdir/data/hkr_hw_lines/test.csv",
+                "prob": 1
+            },
+            {
+                "csv_path": "/workdir/data/idp_forms/test.csv",
+                "prob": 1
+            }
+
+        ],
+        "epoch_size": null,
+        "batch_size": 128
     }
 }

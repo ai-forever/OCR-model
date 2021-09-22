@@ -2,6 +2,7 @@ from tqdm import tqdm
 import os
 import time
 import torch
+import argparse
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 
@@ -9,12 +10,14 @@ from utils.utils import (
     load_pretrain_model, FilesLimitControl, AverageMeter, sec2min
 )
 
-from metrics import get_accuracy
-from dataset import OCRDataset, DataPreprocess, collate_fn, SequentialSampler
-from transforms import get_train_transforms, get_val_transforms
-from tokenizer import Tokenizer
-from config import CONFIG
-from models import CRNN
+from ocr.dataset import (
+    OCRDataset, DataPreprocess, collate_fn, SequentialSampler
+)
+from ocr.utils import val_loop
+from ocr.transforms import get_train_transforms, get_val_transforms
+from ocr.tokenizer import Tokenizer
+from ocr.config import Config
+from ocr.models import CRNN
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -47,28 +50,6 @@ def train_loop(data_loader, model, criterion, optimizer, epoch):
     return loss_avg.avg
 
 
-def val_loop(data_loader, model, tokenizer):
-    acc_avg = AverageMeter()
-    strat_time = time.time()
-    model.eval()
-
-    tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
-    for images, texts, _, _ in tqdm_data_loader:
-        images = images.to(DEVICE)
-        batch_size = len(texts)
-        with torch.no_grad():
-            output = model(images)
-        predicted_sequence = \
-            torch.argmax(output.detach().cpu(), -1).permute(1, 0).numpy()
-        text_preds = tokenizer.decode(predicted_sequence)
-        acc_avg.update(get_accuracy(texts, text_preds), batch_size)
-
-    loop_time = sec2min(time.time() - strat_time)
-    print(f'Validation, '
-          f'acc: {acc_avg.avg:.4f}, loop_time: {loop_time}')
-    return acc_avg.avg
-
-
 def get_loader(
     transforms, csv_paths, tokenizer, dataset_probs, epoch_size,
     batch_size, drop_last
@@ -96,45 +77,46 @@ def get_loader(
     return data_loader
 
 
-def get_loaders(tokenizer):
+def get_loaders(tokenizer, config):
     train_transforms = get_train_transforms(
-        height=CONFIG.get_image('height'),
-        width=CONFIG.get_image('width'),
+        height=config.get_image('height'),
+        width=config.get_image('width'),
         prob=0.2
     )
     train_loader = get_loader(
         transforms=train_transforms,
-        csv_paths=CONFIG.get_train_datasets('csv_path'),
+        csv_paths=config.get_train_datasets('csv_path'),
         tokenizer=tokenizer,
-        dataset_probs=CONFIG.get_train_datasets('prob'),
-        epoch_size=CONFIG.get_train('epoch_size'),
-        batch_size=CONFIG.get_train('batch_size'),
+        dataset_probs=config.get_train_datasets('prob'),
+        epoch_size=config.get_train('epoch_size'),
+        batch_size=config.get_train('batch_size'),
         drop_last=True
     )
     val_transforms = get_val_transforms(
-        height=CONFIG.get_image('height'),
-        width=CONFIG.get_image('width')
+        height=config.get_image('height'),
+        width=config.get_image('width')
     )
     val_loader = get_loader(
         transforms=val_transforms,
-        csv_paths=CONFIG.get_val_datasets('csv_path'),
+        csv_paths=config.get_val_datasets('csv_path'),
         tokenizer=tokenizer,
-        dataset_probs=CONFIG.get_val_datasets('prob'),
-        epoch_size=CONFIG.get_val('epoch_size'),
-        batch_size=CONFIG.get_val('batch_size'),
+        dataset_probs=config.get_val_datasets('prob'),
+        epoch_size=config.get_val('epoch_size'),
+        batch_size=config.get_val('batch_size'),
         drop_last=False
     )
     return train_loader, val_loader
 
 
-def main():
-    os.makedirs(CONFIG.get('save_dir'), exist_ok=True)
-    tokenizer = Tokenizer(CONFIG.get('alphabet'))
-    train_loader, val_loader = get_loaders(tokenizer)
+def main(args):
+    config = Config(args.config_path)
+    tokenizer = Tokenizer(config.get('alphabet'))
+    os.makedirs(config.get('save_dir'), exist_ok=True)
+    train_loader, val_loader = get_loaders(tokenizer, config)
 
     model = CRNN(number_class_symbols=tokenizer.get_num_chars())
-    if CONFIG.get('pretrain_path'):
-        states = load_pretrain_model(CONFIG.get('pretrain_path'), model)
+    if config.get('pretrain_path'):
+        states = load_pretrain_model(config.get('pretrain_path'), model)
         model.load_state_dict(states)
         print('Load pretrained model')
     model.to(DEVICE)
@@ -147,19 +129,25 @@ def main():
     weight_limit_control = FilesLimitControl()
     best_acc = -np.inf
 
-    acc_avg = val_loop(val_loader, model, tokenizer)
-    for epoch in range(CONFIG.get('num_epochs')):
+    acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
+    for epoch in range(config.get('num_epochs')):
         loss_avg = train_loop(train_loader, model, criterion, optimizer, epoch)
-        acc_avg = val_loop(val_loader, model, tokenizer)
+        acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
         scheduler.step(loss_avg)
         if acc_avg > best_acc:
             best_acc = acc_avg
             model_save_path = os.path.join(
-                CONFIG.get('save_dir'), f'model-{epoch}-{acc_avg:.4f}.ckpt')
+                config.get('save_dir'), f'model-{epoch}-{acc_avg:.4f}.ckpt')
             torch.save(model.state_dict(), model_save_path)
             print('Model weights saved')
             weight_limit_control(model_save_path)
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config_path', type=str,
+                        default='/workdir/ocr/config.json',
+                        help='Path to config.json.')
+    args = parser.parse_args()
+
+    main(args)
