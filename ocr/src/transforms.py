@@ -80,6 +80,19 @@ class RandomGaussianBlur:
         return blured_image
 
 
+class InferenceTransform:
+    def __init__(self, height, width):
+        self.transforms = get_val_transforms(height, width)
+
+    def __call__(self, images):
+        transformed_images = []
+        for image in images:
+            image = self.transforms(image)
+            transformed_images.append(image)
+        transformed_tensor = torch.stack(transformed_images, 0)
+        return transformed_tensor
+
+
 def get_train_transforms(height, width, prob):
     transforms = torchvision.transforms.Compose([
         RescalePaddingImage(height, width),

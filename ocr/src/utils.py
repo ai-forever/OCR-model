@@ -5,22 +5,16 @@ from tqdm import tqdm
 from utils.utils import AverageMeter, sec2min
 
 from ocr.src.metrics import get_accuracy
+from ocr.src.predictor  import predict
 
 
 def val_loop(data_loader, model, tokenizer, device):
     acc_avg = AverageMeter()
     strat_time = time.time()
-    model.eval()
-
     tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
     for images, texts, _, _ in tqdm_data_loader:
-        images = images.to(device)
         batch_size = len(texts)
-        with torch.no_grad():
-            output = model(images)
-        predicted_sequence = \
-            torch.argmax(output.detach().cpu(), -1).permute(1, 0).numpy()
-        text_preds = tokenizer.decode(predicted_sequence)
+        text_preds = predict(images, model, tokenizer, device)
         acc_avg.update(get_accuracy(texts, text_preds), batch_size)
 
     loop_time = sec2min(time.time() - strat_time)

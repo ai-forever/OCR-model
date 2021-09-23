@@ -47,9 +47,8 @@ class FilesLimitControl:
 def load_pretrain_model(weights_path, model):
     """Load the entire pretrain model or as many layers as possible.
     """
-    old_model = torch.load(weights_path)
+    old_dict = torch.load(weights_path)
     new_dict = model.state_dict()
-    old_dict = old_model
     for key, weights in new_dict.items():
         if key in old_dict:
             if new_dict[key].shape == old_dict[key].shape:

@@ -34,9 +34,7 @@ def main(args):
     )
 
     model = CRNN(number_class_symbols=tokenizer.get_num_chars())
-    states = load_pretrain_model(args.model_path, model)
-    model.load_state_dict(states)
-    print('Load pretrained model')
+    model.load_state_dict(torch.load(args.model_path))
     model.to(DEVICE)
 
     acc_avg = val_loop(test_loader, model, tokenizer, DEVICE)
