@@ -6,7 +6,7 @@ You can change the [config.json](config.json) (or make a copy of the file) and s
 
 It is also possible to specify several datasets for the train, validation and test, setting the probabilities for each dataset separately (the sum of probabilities can be greater than 1, since normalization occurs inside the processing). For example:
 
-```json
+```
 "train": {
     "datasets": [
         {
