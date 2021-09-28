@@ -97,8 +97,8 @@ def main(args):
     criterion = torch.nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001,
                                   weight_decay=0.01)
-    scheduler = ReduceLROnPlateau(optimizer=optimizer, mode='min',
-                                  factor=0.5, patience=50)
+    scheduler = ReduceLROnPlateau(optimizer=optimizer, mode='max',
+                                  factor=0.5, patience=15)
     weight_limit_control = FilesLimitControl()
     best_acc = -np.inf
 
@@ -106,7 +106,7 @@ def main(args):
     for epoch in range(config.get('num_epochs')):
         loss_avg = train_loop(train_loader, model, criterion, optimizer, epoch)
         acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
-        scheduler.step(loss_avg)
+        scheduler.step(acc_avg)
         if acc_avg > best_acc:
             best_acc = acc_avg
             model_save_path = os.path.join(

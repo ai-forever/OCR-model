@@ -30,6 +30,7 @@ RUN pip3 install --no-cache-dir \
 RUN pip3 install --no-cache-dir \
     opencv-python==4.5.2.52 \
     pandas==1.2.3 \
+    tqdm==4.62.3 \
     pudb==2021.1 \
     scikit-learn==0.24.1 \
     scipy==1.6.1 \
