@@ -22,7 +22,7 @@ from ocr.src.models import CRNN
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-def train_loop(data_loader, model, criterion, optimizer, epoch):
+def train_loop(data_loader, model, criterion, optimizer, epoch, scheduler):
     loss_avg = AverageMeter()
     strat_time = time.time()
     model.train()
@@ -42,6 +42,7 @@ def train_loop(data_loader, model, criterion, optimizer, epoch):
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 2)
         optimizer.step()
+        scheduler.step()
     loop_time = sec2min(time.time() - strat_time)
     for param_group in optimizer.param_groups:
         lr = param_group['lr']
@@ -97,16 +98,22 @@ def main(args):
     criterion = torch.nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001,
                                   weight_decay=0.01)
-    scheduler = ReduceLROnPlateau(optimizer=optimizer, mode='max',
-                                  factor=0.5, patience=15)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(
+        optimizer=optimizer,
+        epochs=config.get('num_epochs'),
+        steps_per_epoch=len(train_loader),
+        max_lr=0.001,
+        pct_start=0.1,
+        anneal_strategy='cos',
+        final_div_factor=10 ** 5
+    )
     weight_limit_control = FilesLimitControl()
     best_acc = -np.inf
 
     acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
     for epoch in range(config.get('num_epochs')):
-        loss_avg = train_loop(train_loader, model, criterion, optimizer, epoch)
+        loss_avg = train_loop(train_loader, model, criterion, optimizer, epoch, scheduler)
         acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
-        scheduler.step(acc_avg)
         if acc_avg > best_acc:
             best_acc = acc_avg
             model_save_path = os.path.join(
