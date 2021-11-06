@@ -1,4 +1,4 @@
-# Sber School Notebooks Recognition
+# OCR CRNN and CTC loss model
 
 ## Quick setup and start
 
