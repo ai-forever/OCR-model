@@ -17,29 +17,12 @@ RUN apt-get update &&\
 # Upgrade pip for cv package instalation
 RUN pip3 install --upgrade pip==21.0.1
 
-RUN pip3 install --no-cache-dir numpy==1.20.3
-
-# Install PyTorch
-RUN pip3 install --no-cache-dir \
-    torch==1.9.0+cu111 \
-    torchvision==0.10.0+cu111 \
-    torchaudio==0.9.0 \
-    -f https://download.pytorch.org/whl/torch_stable.html
-
-# Install python ML packages
-RUN pip3 install --no-cache-dir \
-    opencv-python==4.5.2.52 \
-    pandas==1.2.3 \
-    tqdm==4.62.3 \
-    pudb==2021.1 \
-    scikit-learn==0.24.1 \
-    scipy==1.6.1 \
-    matplotlib==3.4.2 \
-    notebook==6.4.0 \
-    Pillow==8.1.2
-
 ENV PYTHONPATH $PYTHONPATH:/workdir
 ENV TORCH_HOME=/workdir/data/.torch
 ENV LANG C.UTF-8
 
 WORKDIR /workdir
+
+# Install python ML packages
+COPY requirements.txt /workdir
+RUN pip3 install --no-cache-dir -r requirements.txt

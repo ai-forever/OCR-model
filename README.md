@@ -7,6 +7,8 @@
 
 The provided [Dockerfile](Dockerfile) is supplied to build an image with CUDA support and cuDNN.
 
+Also you can install the necessary python packages via [requirements.txt](requirements.txt)
+
 ### Preparations
 
 - Clone the repo.
