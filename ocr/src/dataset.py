@@ -95,12 +95,12 @@ def get_data_loader(
     transforms, csv_paths, tokenizer, dataset_probs, epoch_size,
     batch_size, drop_last
 ):
-    data_process = DataPreprocess(
-        csv_paths=csv_paths,
-        tokenizer=tokenizer,
-        dataset_probs=dataset_probs
-    )
-    data = data_process()
+    data = read_and_concat_datasets(csv_paths)
+    data['enc_text'] = tokenizer.encode(data['text'].values)
+
+    dataset_prob2sample_prob = DatasetProb2SampleProb(csv_paths, dataset_probs)
+    data = dataset_prob2sample_prob(data)
+
     dataset = OCRDataset(data, transforms)
     sampler = SequentialSampler(
         dataset_len=len(data),
@@ -119,8 +119,8 @@ def get_data_loader(
 
 
 class DatasetProb2SampleProb:
-    """Convert dataset sampling prob to sampling prob for each sample in the
-    datset.
+    """Convert dataset sampling probability to probability for each sample
+    in the datset.
 
     Args:
         dataset_names (list): A list of the dataset names.
@@ -133,14 +133,16 @@ class DatasetProb2SampleProb:
             "csv_paths should be equal to the length of the dataset_probs."
         self.dataset2dataset_prob = dict(zip(dataset_names, dataset_probs))
 
-    def _get_dataset2sample_count(self, data):
+    def _dataset2sample_count(self, data):
+        """Calculate samples in each dataset from data using."""
         dataset2sample_count = {}
         for dataset_name in self.dataset2dataset_prob:
             dataset2sample_count[dataset_name] = \
                 (data['dataset_name'] == dataset_name).sum()
         return dataset2sample_count
 
-    def _get_dataset2sample_prob(self, dataset2sample_count):
+    def _dataset2sample_prob(self, dataset2sample_count):
+        """Convert dataaset prob to sample prob."""
         dataset2sample_prob = {}
         for dataset_name, dataset_prob in self.dataset2dataset_prob.items():
             sample_count = dataset2sample_count[dataset_name]
@@ -153,38 +155,11 @@ class DatasetProb2SampleProb:
         Args:
             data (pandas.DataFrame): Dataset with 'dataset_name' column.
         """
-        dataset2sample_count = self._get_dataset2sample_count(data)
+        dataset2sample_count = self._dataset2sample_count(data)
         dataset2sample_prob = \
-            self._get_dataset2sample_prob(dataset2sample_count)
+            self._dataset2sample_prob(dataset2sample_count)
         data['sample_prob'] = data['dataset_name'].apply(
             lambda x: dataset2sample_prob[x])
-        return data
-
-
-class DataPreprocess:
-    """Data preprocessing: concatente datasets in one pandas DataFrame and
-    encode texts to ints.
-
-    Args:
-        csv_paths (list): A list of the dataset csv paths.
-        dataset_probs (list of float): A list of dataset sample probs
-            corresponding to the datasets from csv_paths list.
-        tokenizer (ocr.tokenizer.Tokenizer): Tokenizer class.
-
-    Return:
-        data (pandas.DataFrame): Preprocessed dataset.
-    """
-
-    def __init__(self, csv_paths, dataset_probs, tokenizer):
-        self.csv_paths = csv_paths
-        self.dataset_prob2sample_prob = DatasetProb2SampleProb(
-            self.csv_paths, dataset_probs)
-        self.tokenizer = tokenizer
-
-    def __call__(self):
-        data = read_and_concat_datasets(self.csv_paths)
-        data['enc_text'] = self.tokenizer.encode(data['text'].values)
-        data = self.dataset_prob2sample_prob(data)
         return data
 
 

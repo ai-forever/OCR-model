@@ -3,16 +3,13 @@ import os
 import time
 import torch
 import argparse
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 import numpy as np
 
 from utils.utils import (
     load_pretrain_model, FilesLimitControl, AverageMeter, sec2min
 )
 
-from ocr.src.dataset import (
-    OCRDataset, DataPreprocess, collate_fn, SequentialSampler, get_data_loader
-)
+from ocr.src.dataset import get_data_loader
 from ocr.src.utils import val_loop
 from ocr.src.transforms import get_train_transforms, get_val_transforms
 from ocr.src.tokenizer import Tokenizer
