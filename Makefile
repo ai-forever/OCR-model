@@ -1,4 +1,4 @@
-NAME?=notebooks
+NAME?=ocr-model
 
 GPUS?=all
 GPUS_OPTION=--gpus=$(GPUS)
