@@ -10,41 +10,29 @@
     "train": {
         "datasets": [
             {
-                "csv_path": "/workdir/data/hkr_hw_lines/train.csv",
-                "prob": 1
-            },
-            {
-                "csv_path": "/workdir/data/idp_forms/train.csv",
+                "csv_path": "/data/hkr/train.csv",
                 "prob": 1
             }
 
         ],
-        "epoch_size": 20000,
-        "batch_size": 64
+        "epoch_size": 5000,
+        "batch_size": 32
     },
     "val": {
         "datasets": [
             {
-                "csv_path": "/workdir/data/hkr_hw_lines/val.csv",
-                "prob": 1
-            },
-            {
-                "csv_path": "/workdir/data/idp_forms/val.csv",
+                "csv_path": "/data/hkr/val.csv",
                 "prob": 1
             }
 
         ],
         "epoch_size": null,
-        "batch_size": 128
+        "batch_size": 32
     },
     "test": {
         "datasets": [
             {
-                "csv_path": "/workdir/data/hkr_hw_lines/test.csv",
-                "prob": 1
-            },
-            {
-                "csv_path": "/workdir/data/idp_forms/test.csv",
+                "csv_path": "/data/hkr/test.csv",
                 "prob": 1
             }
 

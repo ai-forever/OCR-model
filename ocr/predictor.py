@@ -1,10 +1,10 @@
 import torch
 import numpy as np
 
-from ocr.src.transforms import InferenceTransform
-from ocr.src.tokenizer import Tokenizer
-from ocr.src.config import Config
-from ocr.src.models import CRNN
+from ocr.transforms import InferenceTransform
+from ocr.tokenizer import Tokenizer
+from ocr.config import Config
+from ocr.models import CRNN
 
 
 def predict(images, model, tokenizer, device):

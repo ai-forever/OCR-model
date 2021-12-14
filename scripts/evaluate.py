@@ -1,16 +1,12 @@
 import torch
 import argparse
 
-from utils.utils import load_pretrain_model
-
-from ocr.src.dataset import (
-    OCRDataset, DataPreprocess, collate_fn, SequentialSampler, get_data_loader
-)
-from ocr.src.utils import val_loop
-from ocr.src.transforms import get_val_transforms
-from ocr.src.tokenizer import Tokenizer
-from ocr.src.config import Config
-from ocr.src.models import CRNN
+from ocr.dataset import get_data_loader
+from ocr.utils import val_loop
+from ocr.transforms import get_val_transforms
+from ocr.tokenizer import Tokenizer
+from ocr.config import Config
+from ocr.models import CRNN
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -43,7 +39,7 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config_path', type=str,
-                        default='/workdir/ocr/config.json',
+                        default='/workdir/scripts/ocr_config.json',
                         help='Path to config.json.')
     parser.add_argument('--model_path', type=str,
                         help='Path to model weights.')
