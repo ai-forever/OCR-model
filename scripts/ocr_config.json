@@ -1,43 +1,43 @@
 {
-    "alphabet": " !\"#$%&'()*+,-./0123456789:;<=>?@[\\]^_`{|}~«»ЁАБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё№",
+    "alphabet": " !\"'()*+,-./0123456789:;<=>?ABCDEFGHIJKLMNOPRSTVWY[\\]_abcdefghiklmnoprstuvwxyz|}ЁАБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяё’№",
     "save_dir": "/workdir/data/experiments/test",
-    "num_epochs": 500,
+    "num_epochs": 100,
     "pretrain_path": "",
     "image": {
-        "width": 300,
-        "height": 32
+        "width": 1024,
+        "height": 128
     },
     "train": {
         "datasets": [
             {
-                "csv_path": "/data/hkr/train.csv",
+                "csv_path": "train.csv",
                 "prob": 1
             }
 
         ],
-        "epoch_size": 5000,
-        "batch_size": 32
+        "epoch_size": 100000,
+        "batch_size": 64
     },
     "val": {
         "datasets": [
             {
-                "csv_path": "/data/hkr/val.csv",
+                "csv_path": "val.csv",
                 "prob": 1
             }
 
         ],
         "epoch_size": null,
-        "batch_size": 32
+        "batch_size": 64
     },
     "test": {
         "datasets": [
             {
-                "csv_path": "/data/hkr/test.csv",
+                "csv_path": "test.csv",
                 "prob": 1
             }
 
         ],
         "epoch_size": null,
-        "batch_size": 128
+        "batch_size": 64
     }
 }
