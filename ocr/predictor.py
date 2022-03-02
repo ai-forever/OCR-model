@@ -31,7 +31,10 @@ class OcrPredictor:
         self.tokenizer = Tokenizer(config.get('alphabet'))
         self.device = torch.device(device)
         # load model
-        self.model = CRNN(number_class_symbols=self.tokenizer.get_num_chars())
+        self.model = CRNN(
+            number_class_symbols=self.tokenizer.get_num_chars(),
+            pretrained=False
+        )
         self.model.load_state_dict(torch.load(model_path))
         self.model.to(self.device)
 

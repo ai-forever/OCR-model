@@ -3,7 +3,7 @@ import torchvision
 
 
 def get_resnet34_backbone(pretrained=True):
-    m = torchvision.models.resnet34(pretrained=True)
+    m = torchvision.models.resnet34(pretrained=pretrained)
     input_conv = nn.Conv2d(3, 64, 7, 1, 3)
     blocks = [input_conv, m.bn1, m.relu,
               m.maxpool, m.layer1, m.layer2, m.layer3]
@@ -25,10 +25,10 @@ class BiLSTM(nn.Module):
 class CRNN(nn.Module):
     def __init__(
         self, number_class_symbols, time_feature_count=256, lstm_hidden=256,
-        lstm_len=3,
+        lstm_len=3, pretrained=True
     ):
         super().__init__()
-        self.feature_extractor = get_resnet34_backbone(pretrained=True)
+        self.feature_extractor = get_resnet34_backbone(pretrained=pretrained)
         self.avg_pool = nn.AdaptiveAvgPool2d(
             (time_feature_count, time_feature_count))
         self.bilstm = BiLSTM(time_feature_count, lstm_hidden, lstm_len)
