@@ -44,6 +44,17 @@ class OcrPredictor:
         )
 
     def __call__(self, images):
+        """Make OCR prediction.
+
+        Args:
+            images (np.ndarray or list of np.ndarray): One image or list of
+                images in BGR format.
+
+        Returns:
+            pred (str or list of strs): The predicted text for one input
+                image, and a list with texts if there is a list of input images.
+        """
+
         if isinstance(images, (list, tuple)):
             one_image = False
         elif isinstance(images, np.ndarray):
