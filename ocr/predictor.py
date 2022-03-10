@@ -26,15 +26,15 @@ def predict(images, model, tokenizer, device):
 
 
 class OcrPredictor:
+    """Make OCR prediction.
+
+    Args:
+        model_path (str): The path to the model weights.
+        config_path (str): The path to the model config.
+        device (str): The device for computation. Default is cuda.
+    """
+
     def __init__(self, model_path, config_path, device='cuda'):
-        """Make OCR prediction.
-
-        Args:
-            model_path (str): The path to the model weights.
-            config_path (str): The path to the model config.
-            device (str): The device for computation. Default is cuda.
-        """
-
         config = Config(config_path)
         self.tokenizer = Tokenizer(config.get('alphabet'))
         self.device = torch.device(device)
