@@ -51,7 +51,7 @@ def get_loaders(tokenizer, config):
     train_transforms = get_train_transforms(
         height=config.get_image('height'),
         width=config.get_image('width'),
-        prob=0.2
+        prob=0.4
     )
     train_loader = get_data_loader(
         transforms=train_transforms,
