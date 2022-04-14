@@ -2,26 +2,25 @@ import torch
 import numpy as np
 
 from ocr.transforms import InferenceTransform
-from ocr.tokenizer import Tokenizer
+from ocr.tokenizer import Tokenizer, BeamSearcDecoder, BestPathDecoder
 from ocr.config import Config
 from ocr.models import CRNN
 
 
-def predict(images, model, tokenizer, device):
+def predict(images, model, decoder, device):
     """Make model prediction.
 
     Args:
         images (torch.Tensor): Batch with tensor images.
         model (ocr.src.models.CRNN): OCR model.
-        tokenizer (ocr.tokenizer.Tokenizer): Tokenizer class.
+        decoder: BeamSearcDecoder or BestPathDecoder class from ocr.tokenizer.
         device (torch.device): Torch device.
     """
     model.eval()
     images = images.to(device)
     with torch.no_grad():
         output = model(images)
-    pred = torch.argmax(output.detach().cpu(), -1).permute(1, 0).numpy()
-    text_preds = tokenizer.decode(pred)
+    text_preds = decoder(output)
     return text_preds
 
 
@@ -34,7 +33,7 @@ class OcrPredictor:
         device (str): The device for computation. Default is cuda.
     """
 
-    def __init__(self, model_path, config_path, device='cuda'):
+    def __init__(self, model_path, config_path, lm_path='', device='cuda'):
         config = Config(config_path)
         self.tokenizer = Tokenizer(config.get('alphabet'))
         self.device = torch.device(device)
@@ -45,6 +44,11 @@ class OcrPredictor:
         )
         self.model.load_state_dict(torch.load(model_path))
         self.model.to(self.device)
+
+        if lm_path:
+            self.decoder = BeamSearcDecoder(config.get('alphabet'), lm_path)
+        else:
+            self.decoder = BestPathDecoder(config.get('alphabet'))
 
         self.transforms = InferenceTransform(
             height=config.get_image('height'),
@@ -71,7 +75,7 @@ class OcrPredictor:
                             f"tuple or list, found {type(images)}.")
 
         images = self.transforms(images)
-        pred = predict(images, self.model, self.tokenizer, self.device)
+        pred = predict(images, self.model, self.decoder, self.device)
 
         if one_image:
             return pred[0]

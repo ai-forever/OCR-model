@@ -8,7 +8,7 @@ from ocr.metrics import get_accuracy, wer, cer
 from ocr.predictor import predict
 
 
-def val_loop(data_loader, model, tokenizer, device):
+def val_loop(data_loader, model, decoder, device):
     acc_avg = AverageMeter()
     wer_avg = AverageMeter()
     cer_avg = AverageMeter()
@@ -16,7 +16,7 @@ def val_loop(data_loader, model, tokenizer, device):
     tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
     for images, texts, _, _ in tqdm_data_loader:
         batch_size = len(texts)
-        text_preds = predict(images, model, tokenizer, device)
+        text_preds = predict(images, model, decoder, device)
         acc_avg.update(get_accuracy(texts, text_preds), batch_size)
         wer_avg.update(wer(texts, text_preds), batch_size)
         cer_avg.update(cer(texts, text_preds), batch_size)

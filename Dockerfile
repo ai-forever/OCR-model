@@ -26,3 +26,4 @@ WORKDIR /workdir
 # Install python ML packages
 COPY requirements.txt /workdir
 RUN pip3 install --no-cache-dir -r requirements.txt
+RUN pip3 install git+https://github.com/parlance/ctcdecode
