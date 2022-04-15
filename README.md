@@ -74,3 +74,6 @@ python scripts/evaluate.py \
 --config_path path/to/the/ocr_config.json \
 --model_path path/to/the/model-weights.ckpt
 ```
+
+If you want to use a beam search decoder with LM, you can pass lm_path arg with path to .arpa kenLM file.
+--lm_path path/to/the/language-model.arpa
