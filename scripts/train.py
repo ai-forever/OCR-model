@@ -11,7 +11,7 @@ from ocr.utils import (
 
 from ocr.dataset import get_data_loader
 from ocr.transforms import get_train_transforms, get_val_transforms
-from ocr.tokenizer import Tokenizer
+from ocr.tokenizer import Tokenizer, BestPathDecoder
 from ocr.config import Config
 from ocr.models import CRNN
 
@@ -91,6 +91,8 @@ def main(args):
         print('Load pretrained model')
     model.to(DEVICE)
 
+    decoder = BestPathDecoder(config.get('alphabet'))
+
     criterion = torch.nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001,
                                   weight_decay=0.01)
@@ -106,11 +108,11 @@ def main(args):
     weight_limit_control = FilesLimitControl()
     best_acc = -np.inf
 
-    acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
+    acc_avg = val_loop(val_loader, model, decoder, DEVICE)
     for epoch in range(config.get('num_epochs')):
         loss_avg = train_loop(train_loader, model, criterion, optimizer,
                               epoch, scheduler)
-        acc_avg = val_loop(val_loader, model, tokenizer, DEVICE)
+        acc_avg = val_loop(val_loader, model, decoder, DEVICE)
         if acc_avg > best_acc:
             best_acc = acc_avg
             model_save_path = os.path.join(
