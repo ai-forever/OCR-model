@@ -2,7 +2,7 @@ import torch
 import argparse
 
 from ocr.dataset import get_data_loader
-from ocr.utils import val_loop
+from ocr.utils import val_loop, configure_logging
 from ocr.transforms import get_val_transforms
 from ocr.tokenizer import Tokenizer, BeamSearcDecoder, BestPathDecoder
 from ocr.config import Config
@@ -15,6 +15,7 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 def main(args):
     config = Config(args.config_path)
     tokenizer = Tokenizer(config.get('alphabet'))
+    logger = configure_logging()
 
     val_transforms = get_val_transforms(
         height=config.get_image('height'),
@@ -39,7 +40,7 @@ def main(args):
     else:
         decoder = BestPathDecoder(config.get('alphabet'))
 
-    acc_avg = val_loop(test_loader, model, decoder, DEVICE)
+    acc_avg = val_loop(test_loader, model, decoder, logger, DEVICE)
 
 
 if __name__ == '__main__':

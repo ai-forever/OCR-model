@@ -2,13 +2,35 @@ import torch
 import os
 import math
 import time
+import logging
 from tqdm import tqdm
 
 from ocr.metrics import get_accuracy, wer, cer
 from ocr.predictor import predict
 
 
-def val_loop(data_loader, model, decoder, device):
+def configure_logging(log_path=None):
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.DEBUG)
+    formatter = logging.Formatter(
+        fmt='%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%d-%b-%y %H:%M:%S'
+    )
+    # Setup console logging
+    sh = logging.StreamHandler()
+    sh.setLevel(logging.DEBUG)
+    sh.setFormatter(formatter)
+    logger.addHandler(sh)
+    # Setup file logging as well
+    if log_path is not None:
+        fh = logging.FileHandler(log_path)
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+    return logger
+
+
+def val_loop(data_loader, model, decoder, logger, device):
     acc_avg = AverageMeter()
     wer_avg = AverageMeter()
     cer_avg = AverageMeter()
@@ -22,11 +44,11 @@ def val_loop(data_loader, model, decoder, device):
         cer_avg.update(cer(texts, text_preds), batch_size)
 
     loop_time = sec2min(time.time() - strat_time)
-    print(f'Validation, '
-          f'acc: {acc_avg.avg:.4f}, '
-          f'wer: {wer_avg.avg:.4f}, '
-          f'cer: {cer_avg.avg:.4f}, '
-          f'loop_time: {loop_time}')
+    logger.info(f'Validation, '
+                f'acc: {acc_avg.avg:.4f}, '
+                f'wer: {wer_avg.avg:.4f}, '
+                f'cer: {cer_avg.avg:.4f}, '
+                f'loop_time: {loop_time}')
     return acc_avg.avg
 
 
@@ -58,9 +80,12 @@ class FilesLimitControl:
         max_weights_to_save (int, optional): The number of files that will be
             stored on the disk at the same time. Default is 3.
     """
-    def __init__(self, max_weights_to_save=2):
+    def __init__(self, logger=None, max_weights_to_save=2):
         self.saved_weights_paths = []
         self.max_weights_to_save = max_weights_to_save
+        self.logger = logger
+        if logger is None:
+            self.logger = configure_logging()
 
     def __call__(self, save_path):
         self.saved_weights_paths.append(save_path)
@@ -68,12 +93,14 @@ class FilesLimitControl:
             old_weights_path = self.saved_weights_paths.pop(0)
             if os.path.exists(old_weights_path):
                 os.remove(old_weights_path)
-                print(f"Weigths removed '{old_weights_path}'")
+                self.logger.info(f"Weigths removed '{old_weights_path}'")
 
 
-def load_pretrain_model(weights_path, model):
+def load_pretrain_model(weights_path, model, logger=None):
     """Load the entire pretrain model or as many layers as possible.
     """
+    if logger is None:
+        logger = configure_logging()
     old_dict = torch.load(weights_path)
     new_dict = model.state_dict()
     for key, weights in new_dict.items():
@@ -81,7 +108,7 @@ def load_pretrain_model(weights_path, model):
             if new_dict[key].shape == old_dict[key].shape:
                 new_dict[key] = old_dict[key]
             else:
-                print('Weights {} were not loaded'.format(key))
+                logger.info('Weights {} were not loaded'.format(key))
         else:
-            print('Weights {} were not loaded'.format(key))
+            logger.info('Weights {} were not loaded'.format(key))
     return new_dict
