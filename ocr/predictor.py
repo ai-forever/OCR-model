@@ -24,6 +24,11 @@ def predict(images, model, decoder, device):
     return text_preds
 
 
+def split_list2batches(lst, batch_size):
+    """Split list of images to list of bacthes."""
+    return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
+
+
 class OcrPredictor:
     """Make OCR prediction.
 
@@ -37,6 +42,7 @@ class OcrPredictor:
         config = Config(config_path)
         self.tokenizer = Tokenizer(config.get('alphabet'))
         self.device = torch.device(device)
+        self.batch_size = config.get_test('batch_size')
         # load model
         self.model = CRNN(
             number_class_symbols=self.tokenizer.get_num_chars(),
@@ -74,8 +80,13 @@ class OcrPredictor:
             raise Exception(f"Input must contain np.ndarray, "
                             f"tuple or list, found {type(images)}.")
 
-        images = self.transforms(images)
-        pred = predict(images, self.model, self.decoder, self.device)
+        images_batches = split_list2batches(images, self.batch_size)
+        pred = []
+        for images_batch in images_batches:
+            images_batch = self.transforms(images_batch)
+            preds_batch = predict(
+                images_batch, self.model, self.decoder, self.device)
+            pred.extend(preds_batch)
 
         if one_image:
             return pred[0]
