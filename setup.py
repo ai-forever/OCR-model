@@ -1,4 +1,5 @@
 from setuptools import setup
+import pip
 
 
 with open('requirements.txt') as f:
@@ -19,3 +20,5 @@ setup(
     install_requires=packages,
     dependency_links=dependencies
 )
+
+pip.main(['install', 'git+https://github.com/parlance/ctcdecode'])
