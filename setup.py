@@ -1,5 +1,11 @@
 from setuptools import setup
-import pip
+import subprocess
+import sys
+
+
+def install(package):
+    # https://stackoverflow.com/a/50255019
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 
 with open('requirements.txt') as f:
@@ -21,4 +27,4 @@ setup(
     dependency_links=dependencies
 )
 
-pip.main(['install', 'git+https://github.com/parlance/ctcdecode'])
+install('git+https://github.com/parlance/ctcdecode')
