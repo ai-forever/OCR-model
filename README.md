@@ -7,14 +7,14 @@
 
 The provided [Dockerfile](Dockerfile) is supplied to build an image with CUDA support and cuDNN.
 
-Also you can install the necessary python packages via [requirements.txt](requirements.txt)
-
 ### Preparations
 
 - Clone the repo.
 - Download and extract dataset to the `data/` folder.
 - `sudo make all` to build a docker image and create a container.
   Or `sudo make all GPUS=device=0 CPUS=10` if you want to specify gpu devices and limit CPU-resources.
+
+Also you can install via setup: `python setup.py install`
 
 ## Configuring the model
 
