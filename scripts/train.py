@@ -19,14 +19,22 @@ from ocr.models import CRNN
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
+def get_sample_probs(sample_losses, text_lens):
+    sample_probs = []
+    for sample_loss, text_len in zip(sample_losses, text_lens):
+        sample_probs.append(sample_loss.item() / text_len.item())
+    return sample_probs
+
+
 def train_loop(
-    data_loader, model, criterion, optimizer, epoch, scheduler, logger
+    data_loader, model, criterion, optimizer, criterion_no_reduction, epoch,
+    scheduler, sampler, logger
 ):
     loss_avg = AverageMeter()
     strat_time = time.time()
     model.train()
     tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
-    for images, texts, enc_pad_texts, text_lens in tqdm_data_loader:
+    for images, texts, enc_pad_texts, text_lens, idxs in tqdm_data_loader:
         model.zero_grad()
         images = images.to(DEVICE)
         batch_size = len(texts)
@@ -37,6 +45,13 @@ def train_loop(
             dtype=torch.long
         )
         loss = criterion(output, enc_pad_texts, output_lenghts, text_lens)
+        sample_losses = criterion_no_reduction(
+            output, enc_pad_texts, output_lenghts, text_lens)
+
+        # update sample probs in batchsampler
+        sample_probs = get_sample_probs(sample_losses, text_lens)
+        sampler.update_sample_probs(sample_probs, idxs)
+
         loss_avg.update(loss.item(), batch_size)
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 2)
@@ -45,6 +60,7 @@ def train_loop(
     loop_time = sec2min(time.time() - strat_time)
     for param_group in optimizer.param_groups:
         lr = param_group['lr']
+    logger.info(f'sample probs min: {min(sampler.init_sample_probs)}, max: {max(sampler.init_sample_probs)}')
     logger.info(f'Epoch {epoch}, Loss: {loss_avg.avg:.5f}, '
                 f'LR: {lr:.7f}, loop_time: {loop_time}')
     return loss_avg.avg
@@ -56,29 +72,31 @@ def get_loaders(tokenizer, config):
         width=config.get_image('width'),
         prob=0.4
     )
-    train_loader = get_data_loader(
+    train_loader, train_sampler = get_data_loader(
         transforms=train_transforms,
         csv_paths=config.get_train_datasets('csv_path'),
         tokenizer=tokenizer,
         dataset_probs=config.get_train_datasets('prob'),
         epoch_size=config.get_train('epoch_size'),
         batch_size=config.get_train('batch_size'),
-        drop_last=True
+        drop_last=True,
+        replace=True
     )
     val_transforms = get_val_transforms(
         height=config.get_image('height'),
         width=config.get_image('width')
     )
-    val_loader = get_data_loader(
+    val_loader, _ = get_data_loader(
         transforms=val_transforms,
         csv_paths=config.get_val_datasets('csv_path'),
         tokenizer=tokenizer,
         dataset_probs=config.get_val_datasets('prob'),
         epoch_size=config.get_val('epoch_size'),
         batch_size=config.get_val('batch_size'),
-        drop_last=False
+        drop_last=False,
+        replace=False
     )
-    return train_loader, val_loader
+    return train_loader, val_loader, train_sampler
 
 
 def main(args):
@@ -87,7 +105,7 @@ def main(args):
     os.makedirs(config.get('save_dir'), exist_ok=True)
     log_path = os.path.join(config.get('save_dir'), "output.log")
     logger = configure_logging(log_path)
-    train_loader, val_loader = get_loaders(tokenizer, config)
+    train_loader, val_loader, train_sampler = get_loaders(tokenizer, config)
 
     model = CRNN(number_class_symbols=tokenizer.get_num_chars())
     if config.get('pretrain_path'):
@@ -100,6 +118,8 @@ def main(args):
     decoder = BestPathDecoder(config.get('alphabet'))
 
     criterion = torch.nn.CTCLoss(blank=0, reduction='mean', zero_infinity=True)
+    criterion_no_reduction = torch.nn.CTCLoss(blank=0, reduction='none',
+                                              zero_infinity=True)
     optimizer = torch.optim.AdamW(model.parameters(), lr=0.001,
                                   weight_decay=0.01)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(
@@ -117,7 +137,8 @@ def main(args):
     acc_avg = val_loop(val_loader, model, decoder, logger, DEVICE)
     for epoch in range(config.get('num_epochs')):
         loss_avg = train_loop(train_loader, model, criterion, optimizer,
-                              epoch, scheduler, logger)
+                              criterion_no_reduction, epoch, scheduler,
+                              train_sampler, logger)
         acc_avg = val_loop(val_loader, model, decoder, logger, DEVICE)
         if acc_avg > best_acc:
             best_acc = acc_avg

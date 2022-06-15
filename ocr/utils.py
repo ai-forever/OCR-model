@@ -36,7 +36,7 @@ def val_loop(data_loader, model, decoder, logger, device):
     cer_avg = AverageMeter()
     strat_time = time.time()
     tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
-    for images, texts, _, _ in tqdm_data_loader:
+    for images, texts, _, _, _ in tqdm_data_loader:
         batch_size = len(texts)
         text_preds = predict(images, model, decoder, device)
         acc_avg.update(get_accuracy(texts, text_preds), batch_size)
