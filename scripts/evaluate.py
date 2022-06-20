@@ -28,13 +28,13 @@ def main(args):
     csv_paths = config.get_test_datasets('csv_path')
     dataset_probs = config.get_test_datasets('prob')
 
-    for item in range(len(config.get_test_datasets('csv_path'))):
+    for csv_path, dataset_prob in zip(csv_paths, dataset_probs):
 
         test_loader = get_data_loader(
             transforms=val_transforms,
-            csv_paths=[csv_paths[item]],
+            csv_paths=[csv_path],
             tokenizer=tokenizer,
-            dataset_probs=[dataset_probs[item]],
+            dataset_probs=[dataset_prob],
             epoch_size=config.get_test('epoch_size'),
             batch_size=config.get_test('batch_size'),
             drop_last=False
@@ -45,7 +45,7 @@ def main(args):
         else:
             decoder = BestPathDecoder(config.get('alphabet'))
 
-        print(config.get_test_datasets('csv_path')[item])
+        print(csv_path)
         acc_avg = val_loop(test_loader, model, decoder, logger, DEVICE)
 
 
