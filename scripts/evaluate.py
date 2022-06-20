@@ -8,7 +8,6 @@ from ocr.tokenizer import Tokenizer, BeamSearcDecoder, BestPathDecoder
 from ocr.config import Config
 from ocr.models import CRNN
 
-
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -21,26 +20,33 @@ def main(args):
         height=config.get_image('height'),
         width=config.get_image('width')
     )
-    test_loader = get_data_loader(
-        transforms=val_transforms,
-        csv_paths=config.get_test_datasets('csv_path'),
-        tokenizer=tokenizer,
-        dataset_probs=config.get_test_datasets('prob'),
-        epoch_size=config.get_test('epoch_size'),
-        batch_size=config.get_test('batch_size'),
-        drop_last=False
-    )
 
     model = CRNN(number_class_symbols=tokenizer.get_num_chars())
     model.load_state_dict(torch.load(args.model_path))
     model.to(DEVICE)
 
-    if args.lm_path:
-        decoder = BeamSearcDecoder(config.get('alphabet'), args.lm_path)
-    else:
-        decoder = BestPathDecoder(config.get('alphabet'))
+    csv_paths = config.get_test_datasets('csv_path')
+    dataset_probs = config.get_test_datasets('prob')
 
-    acc_avg = val_loop(test_loader, model, decoder, logger, DEVICE)
+    for item in range(len(config.get_test_datasets('csv_path'))):
+
+        test_loader = get_data_loader(
+            transforms=val_transforms,
+            csv_paths=[csv_paths[item]],
+            tokenizer=tokenizer,
+            dataset_probs=[dataset_probs[item]],
+            epoch_size=config.get_test('epoch_size'),
+            batch_size=config.get_test('batch_size'),
+            drop_last=False
+        )
+
+        if args.lm_path:
+            decoder = BeamSearcDecoder(config.get('alphabet'), args.lm_path)
+        else:
+            decoder = BestPathDecoder(config.get('alphabet'))
+
+        print(config.get_test_datasets('csv_path')[item])
+        acc_avg = val_loop(test_loader, model, decoder, logger, DEVICE)
 
 
 if __name__ == '__main__':
