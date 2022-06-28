@@ -81,7 +81,7 @@ def get_data_from_image(data, image_id, class_names):
 
 def make_large_bbox_dataset(
     input_coco_json, image_root, class_names, bbox_scale_x, bbox_scale_y,
-    save_dir, save_csv_name, image_folder_name='images'
+    save_dir, save_csv_name, remove_turned_crops, image_folder_name='images'
 ):
     os.makedirs(save_dir, exist_ok=True)
     save_image_dir = os.path.join(save_dir, image_folder_name)
@@ -104,11 +104,19 @@ def make_large_bbox_dataset(
         for idx, (text, bbox) in enumerate(crop_data):
             upscaled_bbox = upscale_bbox(bbox, bbox_scale_x, bbox_scale_y)
             crop = img_crop(image, upscaled_bbox)
-            crop_name = f'{image_folder_name}/{image_id}-{idx}.png'
-            crop_path = os.path.join(save_dir, crop_name)
-            cv2.imwrite(crop_path, crop)
-            texts.append(text)
-            crop_names.append(crop_name)
+            crop_h, crop_w = crop.shape[:2]
+            save_crop = True
+            if (
+                remove_turned_crops
+                and crop_h > crop_w
+            ):
+                save_crop = False
+            if save_crop:
+                crop_name = f'{image_folder_name}/{image_id}-{idx}.png'
+                crop_path = os.path.join(save_dir, crop_name)
+                cv2.imwrite(crop_path, crop)
+                texts.append(text)
+                crop_names.append(crop_name)
 
     data = pd.DataFrame(zip(crop_names, texts), columns=["filename", "text"])
     csv_path = os.path.join(save_dir, save_csv_name)
@@ -123,6 +131,8 @@ if __name__ == '__main__':
     parser.add_argument('--annotation_image_root', type=str, required=True,
                         help='Directory to folder with images from'
                         'annotatin.json.')
+    parser.add_argument("--remove_turned_crops", action='store_true',
+                        help="To remove images with height greater than width.")
     parser.add_argument('--class_names', nargs='+', type=str, required=True,
                         help='Class namess (separated by spaces) from '
                         'annotation_json_path to make OCR dataset from them.')
@@ -145,5 +155,6 @@ if __name__ == '__main__':
         bbox_scale_x=args.bbox_scale_x,
         bbox_scale_y=args.bbox_scale_y,
         save_dir=args.save_dir,
+        remove_turned_crops=args.remove_turned_crops,
         save_csv_name=args.output_csv_name
     )
