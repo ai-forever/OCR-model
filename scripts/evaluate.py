@@ -28,6 +28,8 @@ def main(args):
     csv_paths = config.get_test_datasets('csv_path')
     dataset_probs = config.get_test_datasets('prob')
 
+    acc_avg_all = []
+
     for csv_path, dataset_prob in zip(csv_paths, dataset_probs):
 
         test_loader = get_data_loader(
@@ -47,6 +49,9 @@ def main(args):
 
         print(csv_path)
         acc_avg = val_loop(test_loader, model, decoder, logger, DEVICE)
+        acc_avg_all.append(acc_avg)
+
+    print(f'acc all: {sum(acc_avg_all) / len(acc_avg_all):.4f}')
 
 
 if __name__ == '__main__':
