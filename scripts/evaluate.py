@@ -1,4 +1,5 @@
 import torch
+import logging
 import argparse
 
 from ocr.dataset import get_data_loader
@@ -28,6 +29,13 @@ def main(args):
     csv_paths = config.get_test_datasets('csv_path')
     dataset_probs = config.get_test_datasets('prob')
 
+    if args.lm_path:
+        decoder = BeamSearcDecoder(config.get('alphabet'), args.lm_path)
+    else:
+        decoder = BestPathDecoder(config.get('alphabet'))
+
+    acc_avg_all = []
+
     for csv_path, dataset_prob in zip(csv_paths, dataset_probs):
 
         test_loader = get_data_loader(
@@ -40,13 +48,11 @@ def main(args):
             drop_last=False
         )
 
-        if args.lm_path:
-            decoder = BeamSearcDecoder(config.get('alphabet'), args.lm_path)
-        else:
-            decoder = BestPathDecoder(config.get('alphabet'))
-
-        print(csv_path)
+        logger.info(csv_path)
         acc_avg = val_loop(test_loader, model, decoder, logger, DEVICE)
+        acc_avg_all.append(acc_avg)
+
+    logger.info(f'Average accuracy by dataset: {sum(acc_avg_all) / len(acc_avg_all):.4f}')
 
 
 if __name__ == '__main__':
