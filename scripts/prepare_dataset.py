@@ -9,7 +9,7 @@ import argparse
 
 def numbers2coords(list_of_numbers):
     """Convert list of numbers to list of tuple coords x, y."""
-    bbox = [[list_of_numbers[i], list_of_numbers[i+1]]
+    bbox = [[int(list_of_numbers[i]), int(list_of_numbers[i+1])]
             for i in range(0, len(list_of_numbers), 2)]
     return np.array(bbox)
 
@@ -63,6 +63,7 @@ def class_names2id(class_names, data):
 def get_data_from_image(data, image_id, class_names):
     texts = []
     bboxes = []
+    polygons = []
     category_ids = class_names2id(class_names, data)
     for idx, data_ann in enumerate(data['annotations']):
         if (
@@ -75,13 +76,15 @@ def get_data_from_image(data, image_id, class_names):
             polygon = numbers2coords(data_ann['segmentation'][0])
             bbox = polygon2bbox(polygon)
             bboxes.append(bbox)
+            polygons.append(polygon)
             texts.append(data_ann['attributes']['translation'])
-    return texts, bboxes
+    return texts, bboxes, polygons
 
 
 def make_large_bbox_dataset(
     input_coco_json, image_root, class_names, bbox_scale_x, bbox_scale_y,
-    save_dir, save_csv_name, remove_turned_crops, image_folder_name='images'
+    save_dir, save_csv_name, remove_turned_crops, crop_by_mask,
+    image_folder_name='images'
 ):
     os.makedirs(save_dir, exist_ok=True)
     save_image_dir = os.path.join(save_dir, image_folder_name)
@@ -90,21 +93,28 @@ def make_large_bbox_dataset(
     with open(input_coco_json, 'r') as f:
         data = json.load(f)
 
-    texts = []
+    crop_texts = []
     crop_names = []
     for data_img in tqdm(data['images']):
         img_name = data_img['file_name']
         image_id = data_img['id']
         image = cv2.imread(os.path.join(image_root, img_name))
 
-        texts_from_image, bboxes_from_image = \
+        texts, bboxes, polygons = \
             get_data_from_image(data, image_id, class_names)
 
-        crop_data = zip(texts_from_image, bboxes_from_image)
-        for idx, (text, bbox) in enumerate(crop_data):
+        crop_data = zip(texts, bboxes, polygons)
+        for idx, (text, bbox, polygon) in enumerate(crop_data):
             upscaled_bbox = upscale_bbox(bbox, bbox_scale_x, bbox_scale_y)
             crop = img_crop(image, upscaled_bbox)
             crop_h, crop_w = crop.shape[:2]
+
+            if crop_by_mask:
+                pts = polygon - polygon.min(axis=0)
+                mask = np.zeros((crop_h, crop_w), np.uint8)
+                cv2.drawContours(mask, [pts], -1, (255, 255, 255), -1, cv2.LINE_AA)
+                crop = cv2.bitwise_and(crop, crop, mask=mask)
+
             save_crop = True
             if (
                 remove_turned_crops
@@ -115,10 +125,9 @@ def make_large_bbox_dataset(
                 crop_name = f'{image_folder_name}/{image_id}-{idx}.png'
                 crop_path = os.path.join(save_dir, crop_name)
                 cv2.imwrite(crop_path, crop)
-                texts.append(text)
+                crop_texts.append(text)
                 crop_names.append(crop_name)
-
-    data = pd.DataFrame(zip(crop_names, texts), columns=["filename", "text"])
+    data = pd.DataFrame(zip(crop_names, crop_texts), columns=["filename", "text"])
     csv_path = os.path.join(save_dir, save_csv_name)
     data.to_csv(csv_path, index=False)
 
@@ -133,6 +142,8 @@ if __name__ == '__main__':
                         'annotatin.json.')
     parser.add_argument("--remove_turned_crops", action='store_true',
                         help="To remove images with height greater than width.")
+    parser.add_argument("--crop_by_mask", action='store_true',
+                        help="To crop iamges by mask instead of bbox.")
     parser.add_argument('--class_names', nargs='+', type=str, required=True,
                         help='Class namess (separated by spaces) from '
                         'annotation_json_path to make OCR dataset from them.')
@@ -156,5 +167,6 @@ if __name__ == '__main__':
         bbox_scale_y=args.bbox_scale_y,
         save_dir=args.save_dir,
         remove_turned_crops=args.remove_turned_crops,
+        crop_by_mask=args.crop_by_mask,
         save_csv_name=args.output_csv_name
     )
