@@ -4,7 +4,6 @@ import torchvision
 import cv2
 import random
 import numpy as np
-from albumentations import augmentations
 
 
 class RescalePaddingImage:
@@ -15,9 +14,10 @@ class RescalePaddingImage:
     def __call__(self, image):
         h, w = image.shape[:2]
         # width proportional to change in  height
-        new_width = int(w*(self.output_height/h))
+        new_width = int(w * (self.output_height / (h + 1)))
         # new_width cannot be bigger than output_width
         new_width = min(new_width, self.output_width)
+
         image = cv2.resize(image, (new_width, self.output_height),
                            interpolation=cv2.INTER_LINEAR)
         if new_width < self.output_width:
@@ -37,25 +37,6 @@ class ToTensor:
     def __call__(self, arr):
         arr = torch.from_numpy(arr)
         return arr
-
-
-class Rotate:
-    def __init__(self, max_ang, prob):
-        self.aug = augmentations.geometric.rotate.Rotate(limit=max_ang, p=prob)
-
-    def __call__(self, img):
-        augmented = self.aug(image=img)
-        return augmented['image']
-
-
-class SafeRotate:
-    def __init__(self, max_ang, prob):
-        self.aug = augmentations.geometric.rotate.SafeRotate(
-            limit=max_ang, p=prob)
-
-    def __call__(self, img):
-        augmented = self.aug(image=img)
-        return augmented['image']
 
 
 class MoveChannels:
@@ -82,12 +63,23 @@ class UseWithProb:
         return image
 
 
-class OneOf:
-    def __init__(self, transforms):
-        self.transforms = transforms
+class RandomGaussianBlur:
+    """Apply Gaussian blur with random kernel size
+
+    Args:
+        max_ksize (int): maximal size of a kernel to apply, should be odd
+        sigma_x (int): Standard deviation
+    """
+
+    def __init__(self, max_ksize=5, sigma_x=20):
+        assert max_ksize % 2 == 1, "max_ksize should be odd"
+        self.max_ksize = max_ksize // 2 + 1
+        self.sigma_x = sigma_x
 
     def __call__(self, image):
-        return random.choice(self.transforms)(image)
+        kernal_size = tuple(2 * np.random.randint(0, self.max_ksize, 2) + 1)
+        blured_image = cv2.GaussianBlur(image, kernal_size, self.sigma_x)
+        return blured_image
 
 
 def img_crop(img, bbox):
@@ -116,8 +108,8 @@ class RandomCrop:
     def __call__(self, img):
         factor = random.uniform(self.factor_min, self.factor_max)
         size = (
-            int(img.shape[1]*factor),
-            int(img.shape[0]*factor)
+            int(img.shape[1] * factor),
+            int(img.shape[0] * factor)
         )
         img, x1, y1 = random_crop(img, size)
         return img
@@ -168,10 +160,10 @@ def crop_around_center(image, width, height):
     image_size = (image.shape[1], image.shape[0])
     image_center = (int(image_size[0] * 0.5), int(image_size[1] * 0.5))
 
-    if(width > image_size[0]):
+    if (width > image_size[0]):
         width = image_size[0]
 
-    if(height > image_size[1]):
+    if (height > image_size[1]):
         height = image_size[1]
 
     x1 = int(image_center[0] - width * 0.5)
@@ -182,9 +174,8 @@ def crop_around_center(image, width, height):
     return image[y1:y2, x1:x2]
 
 
-class RotateAndCrop:
+class RandomRotate:
     """Random image rotate around the image center
-
     Args:
         max_ang (float): Max angle of rotation in deg
     """
@@ -196,10 +187,12 @@ class RotateAndCrop:
         h, w, _ = img.shape
 
         ang = np.random.uniform(-self.max_ang, self.max_ang)
-        M = cv2.getRotationMatrix2D((w/2, h/2), ang, 1)
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), ang, 1)
         img = cv2.warpAffine(img, M, (w, h))
 
         w_cropped, h_cropped = largest_rotated_rect(w, h, math.radians(ang))
+        # to fix cases of too small or negative image height when cropping
+        h_cropped = max(h_cropped, 10)
         img = crop_around_center(img, w_cropped, h_cropped)
         return img
 
@@ -217,285 +210,11 @@ class InferenceTransform:
         return transformed_tensor
 
 
-class CLAHE:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.CLAHE(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class GaussNoise:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.GaussNoise(
-            var_limit=100, p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class ISONoise:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.ISONoise(
-            p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class MultiplicativeNoise:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.MultiplicativeNoise(
-            multiplier=(0.85, 1.15), p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class ImageCompression:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.ImageCompression(
-            quality_lower=60, quality_upper=90, p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class Sharpen:
-    def __init__(self, prob):
-        self.aug = augmentations.Sharpen(
-            p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class ElasticTransform:
-    def __init__(self, prob):
-        self.aug = augmentations.geometric.transforms.ElasticTransform(
-            alpha_affine=2.5, p=prob)
-
-    def __call__(self, img):
-        augmented = self.aug(image=img)
-        return augmented['image']
-
-
-class GridDistortion:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.GridDistortion(p=prob)
-
-    def __call__(self, img):
-        augmented = self.aug(image=img)
-        return augmented['image']
-
-
-class OpticalDistortion:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.OpticalDistortion(
-            distort_limit=0.2, p=prob)
-
-    def __call__(self, img):
-        augmented = self.aug(image=img)
-        return augmented['image']
-
-
-class Perspective:
-    def __init__(self, prob):
-        self.aug = augmentations.geometric.transforms.Perspective(
-            pad_mode=2, fit_output=True, p=prob)
-
-    def __call__(self, img):
-        augmented = self.aug(image=img)
-        return augmented['image']
-
-
-class ChannelDropout:
-    def __init__(self, prob):
-        self.aug = augmentations.ChannelDropout(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class ChannelShuffle:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.ChannelShuffle(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class RGBShift:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.RGBShift(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class ToGray:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.ToGray(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class ToSepia:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.ToSepia(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class RandomBrightnessContrast:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.RandomBrightnessContrast(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class RandomSnow:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.RandomSnow(
-            brightness_coeff=1.5, p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class HueSaturationValue:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.HueSaturationValue(p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class RandomShadow:
-    def __init__(self):
-        pass
-
-    def __call__(self, image, mask=None):
-        row, col, ch = image.shape
-        # We take a random point at the top for the x coordinate and then
-        # another random x-coordinate at the bottom and join them to create
-        # a shadow zone on the image.
-        top_y = col * np.random.uniform()
-        top_x = 0
-        bot_x = row
-        bot_y = col * np.random.uniform()
-        img_hls = cv2.cvtColor(image, cv2.COLOR_RGB2HLS)
-        shadow_mask = 0 * img_hls[:, :, 1]
-        X_m = np.mgrid[0:image.shape[0], 0:image.shape[1]][0]
-        Y_m = np.mgrid[0:image.shape[0], 0:image.shape[1]][1]
-
-        shadow_mask[((X_m - top_x) * (bot_y - top_y) - (bot_x - top_x) * (Y_m - top_y) >= 0)] = 1
-
-        random_bright = .25 + .7 * np.random.uniform()
-        cond0 = shadow_mask == 0
-        cond1 = shadow_mask == 1
-
-        if np.random.randint(2) == 1:
-            img_hls[:, :, 1][cond1] = img_hls[:, :, 1][cond1] * random_bright
-        else:
-            img_hls[:, :, 1][cond0] = img_hls[:, :, 1][cond0] * random_bright
-        image = cv2.cvtColor(img_hls, cv2.COLOR_HLS2RGB)
-
-        image = np.clip(image, 0, 255)
-        image = image.astype(np.uint8)
-
-        if mask is not None:
-            return image, mask
-        else:
-            return image
-
-
-class RandomGamma:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.RandomGamma(
-            gamma_limit=(50, 150), p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class MotionBlur:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.MotionBlur(
-            blur_limit=7, p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class MedianBlur:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.MedianBlur(
-            blur_limit=5, p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
-class GlassBlur:
-    def __init__(self, prob):
-        self.aug = augmentations.transforms.GlassBlur(
-            sigma=0.7, max_delta=2, p=prob)
-
-    def __call__(self, img):
-        img = self.aug(image=img)['image']
-        return img
-
-
 def get_train_transforms(height, width, prob):
     transforms = torchvision.transforms.Compose([
-        OneOf([
-            CLAHE(prob),
-            GaussNoise(prob),
-            ISONoise(prob),
-            MultiplicativeNoise(prob),
-            ImageCompression(prob),
-            Sharpen(prob),
-            MotionBlur(prob),
-            MedianBlur(prob)
-        ]),
-        UseWithProb(RandomCrop(rnd_crop_min=0.80), 1),
-        OneOf([
-            UseWithProb(RotateAndCrop(2), prob),
-            Rotate(2, prob),
-            SafeRotate(5, prob),
-            ElasticTransform(prob),
-            GridDistortion(prob),
-            OpticalDistortion(prob),
-            Perspective(prob)
-        ]),
-        OneOf([
-            RandomBrightnessContrast(prob),
-            RandomGamma(prob),
-            HueSaturationValue(prob),
-            RandomSnow(prob),
-            UseWithProb(RandomShadow(), prob)
-        ]),
+        UseWithProb(RandomGaussianBlur(max_ksize=5), prob=prob),
+        UseWithProb(RandomRotate(2), prob),
+        UseWithProb(RandomCrop(rnd_crop_min=0.95), prob),
         RescalePaddingImage(height, width),
         MoveChannels(to_channels_first=True),
         Normalize(),
