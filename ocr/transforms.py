@@ -200,6 +200,8 @@ class RotateAndCrop:
         img = cv2.warpAffine(img, M, (w, h))
 
         w_cropped, h_cropped = largest_rotated_rect(w, h, math.radians(ang))
+        #to fix cases of too small or negative image height when cropping
+        h_cropped = max(h_cropped, 10)
         img = crop_around_center(img, w_cropped, h_cropped)
         return img
 
