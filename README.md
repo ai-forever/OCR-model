@@ -14,7 +14,7 @@ The provided [Dockerfile](Dockerfile) is supplied to build an image with CUDA su
 - `sudo make all` to build a docker image and create a container.
   Or `sudo make all GPUS=device=0 CPUS=10` if you want to specify gpu devices and limit CPU-resources.
 
-Also you can install via setup: `python setup.py install`
+If you don't want to use Docker, you can install dependencies via requirements.txt
 
 ## Configuring the model
 
