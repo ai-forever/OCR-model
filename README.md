@@ -1,4 +1,6 @@
-# OCR CRNN and CTC loss model
+# OCR model
+
+This is a model for Optical Character Recognition based on [CRNN-arhitecture](https://arxiv.org/abs/1507.05717) and [CTC loss](https://www.cs.toronto.edu/~graves/icml_2006.pdf).
 
 ## Quick setup and start
 
