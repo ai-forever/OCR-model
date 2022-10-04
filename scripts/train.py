@@ -15,6 +15,8 @@ from ocr.transforms import get_train_transforms, get_val_transforms
 from ocr.tokenizer import Tokenizer, BestPathDecoder
 from ocr.config import Config
 from ocr.models import CRNN
+from ocr.predictor import predict
+from ocr.metrics import get_accuracy, wer, cer
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -23,6 +25,11 @@ def train_loop(
     data_loader, model, criterion, optimizer, epoch, scheduler, logger
 ):
     loss_avg = AverageMeter()
+    acc_avg = AverageMeter()
+    wer_avg = AverageMeter()
+    cer_avg = AverageMeter()
+    config = Config(args.config_path)
+    decoder = BestPathDecoder(config.get('alphabet'))
     strat_time = time.time()
     model.train()
     tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
@@ -30,6 +37,10 @@ def train_loop(
         model.zero_grad()
         images = images.to(DEVICE)
         batch_size = len(texts)
+        text_preds = predict(images, model, decoder, DEVICE)
+        acc_avg.update(get_accuracy(texts, text_preds), batch_size)
+        wer_avg.update(wer(texts, text_preds), batch_size)
+        cer_avg.update(cer(texts, text_preds), batch_size)
         output = model(images)
         output_lenghts = torch.full(
             size=(output.size(1),),
@@ -46,6 +57,9 @@ def train_loop(
     for param_group in optimizer.param_groups:
         lr = param_group['lr']
     logger.info(f'Epoch {epoch}, Loss: {loss_avg.avg:.5f}, '
+                f'acc: {acc_avg.avg:.4f}, '
+                f'wer: {wer_avg.avg:.4f}, '
+                f'cer: {cer_avg.avg:.4f}, '
                 f'LR: {lr:.7f}, loop_time: {loop_time}')
     return loss_avg.avg
 
