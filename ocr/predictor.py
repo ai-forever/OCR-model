@@ -21,7 +21,6 @@ def predict(images, model, decoder, device):
     with torch.no_grad():
         output = model(images)
     text_preds = decoder(output)
-    model.train()
     return text_preds
 
 
