@@ -15,14 +15,18 @@ from ocr.transforms import get_train_transforms, get_val_transforms
 from ocr.tokenizer import Tokenizer, BestPathDecoder
 from ocr.config import Config
 from ocr.models import CRNN
+from ocr.metrics import get_accuracy, wer, cer
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def train_loop(
-    data_loader, model, criterion, optimizer, epoch, scheduler, logger
+    data_loader, model, decoder, criterion, optimizer, epoch, scheduler, logger
 ):
     loss_avg = AverageMeter()
+    acc_avg = AverageMeter()
+    wer_avg = AverageMeter()
+    cer_avg = AverageMeter()
     strat_time = time.time()
     model.train()
     tqdm_data_loader = tqdm(data_loader, total=len(data_loader), leave=False)
@@ -31,6 +35,10 @@ def train_loop(
         images = images.to(DEVICE)
         batch_size = len(texts)
         output = model(images)
+        text_preds = decoder(output)
+        acc_avg.update(get_accuracy(texts, text_preds), batch_size)
+        wer_avg.update(wer(texts, text_preds), batch_size)
+        cer_avg.update(cer(texts, text_preds), batch_size)
         output_lenghts = torch.full(
             size=(output.size(1),),
             fill_value=output.size(0),
@@ -45,7 +53,10 @@ def train_loop(
     loop_time = sec2min(time.time() - strat_time)
     for param_group in optimizer.param_groups:
         lr = param_group['lr']
-    logger.info(f'Epoch {epoch}, Loss: {loss_avg.avg:.5f}, '
+    logger.info(f'Epoch {epoch}, Loss: {loss_avg.avg:.4f}, '
+                f'acc: {acc_avg.avg:.4f}, '
+                f'wer: {wer_avg.avg:.4f}, '
+                f'cer: {cer_avg.avg:.4f}, '
                 f'LR: {lr:.7f}, loop_time: {loop_time}')
     return loss_avg.avg
 
@@ -116,7 +127,7 @@ def main(args):
 
     acc_avg = val_loop(val_loader, model, decoder, logger, DEVICE)
     for epoch in range(config.get('num_epochs')):
-        loss_avg = train_loop(train_loader, model, criterion, optimizer,
+        loss_avg = train_loop(train_loader, model, decoder, criterion, optimizer,
                               epoch, scheduler, logger)
         acc_avg = val_loop(val_loader, model, decoder, logger, DEVICE)
         if acc_avg > best_acc:
