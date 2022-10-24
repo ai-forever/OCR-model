@@ -69,7 +69,7 @@ def get_data_from_image(data, image_id, class_names):
         if (
             data_ann['image_id'] == image_id
             and data_ann['category_id'] in category_ids
-            and data_ann['attributes']
+            and data_ann.get('attributes') is not None
             and data_ann['attributes']['translation']
             and data_ann['segmentation']
         ):
