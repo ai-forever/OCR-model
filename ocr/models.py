@@ -2,6 +2,14 @@ import torch.nn as nn
 import torchvision
 
 
+class GlobalMaxPool2d(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        return x.max(dim=-2, keepdim=True)[0]
+
+
 def get_resnet34_backbone(pretrained=True):
     m = torchvision.models.resnet34(pretrained=pretrained)
     input_conv = nn.Conv2d(3, 64, 7, 1, 3)
@@ -29,8 +37,7 @@ class CRNN(nn.Module):
     ):
         super().__init__()
         self.feature_extractor = get_resnet34_backbone(pretrained=pretrained)
-        self.avg_pool = nn.AdaptiveAvgPool2d(
-            (time_feature_count, time_feature_count))
+        self.global_maxpool = GlobalMaxPool2d()
         self.bilstm = BiLSTM(time_feature_count, lstm_hidden, lstm_len)
         self.classifier = nn.Sequential(
             nn.Linear(lstm_hidden * 2, time_feature_count),
@@ -41,10 +48,9 @@ class CRNN(nn.Module):
 
     def forward(self, x):
         x = self.feature_extractor(x)
-        b, c, h, w = x.size()
-        x = x.view(b, c * h, w)
-        x = self.avg_pool(x)
-        x = x.transpose(1, 2)
+        x = self.global_maxpool(x)
+        x = x.squeeze(2)
+        x = x.permute(0, 2, 1)
         x = self.bilstm(x)
         x = self.classifier(x)
         x = nn.functional.log_softmax(x, dim=2).permute(1, 0, 2)
