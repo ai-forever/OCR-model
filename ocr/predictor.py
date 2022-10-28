@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import onnxruntime as ort
 
 from ocr.transforms import InferenceTransform
 from ocr.tokenizer import Tokenizer, BeamSearcDecoder, BestPathDecoder
@@ -13,20 +14,74 @@ def predict(images, model, decoder, device):
     Args:
         images (torch.Tensor): Batch with tensor images.
         model (ocr.src.models.CRNN): OCR model.
-        decoder: BeamSearcDecoder or BestPathDecoder class from ocr.tokenizer.
+        decoder: (ocr.tokenizer.OCRDecoder)
         device (torch.device): Torch device.
     """
     model.eval()
     images = images.to(device)
     with torch.no_grad():
         output = model(images)
-    text_preds = decoder(output)
+    text_preds = decoder.decode(output)
     return text_preds
 
 
 def split_list2batches(lst, batch_size):
     """Split list of images to list of bacthes."""
     return [lst[i:i+batch_size] for i in range(0, len(lst), batch_size)]
+
+
+class OCRModel:
+    def predict(self):
+        raise NotImplementedError
+
+
+class OCRONNXCPUModel(OCRModel):
+    def __init__(self, model_path, config, decoder):
+        self.tokenizer = Tokenizer(config.get('alphabet'))
+        self.decoder = decoder
+        # load model
+        self.model = ort.InferenceSession(model_path)
+
+        self.transforms = InferenceTransform(
+            height=config.get_image('height'),
+            width=config.get_image('width'),
+            return_numpy=True
+        )
+
+    def predict(self, images):
+        transformed_images = self.transforms(images)
+        output = self.model.run(
+            None,
+            {"input": transformed_images},
+        )[0]
+        pred = self.decoder.decode_numpy(output)
+        return pred
+
+
+class OCRTorchModel(OCRModel):
+    def __init__(self, model_path, config, decoder, device='cuda'):
+        self.tokenizer = Tokenizer(config.get('alphabet'))
+        self.device = torch.device(device)
+        self.decoder = decoder
+        # load model
+        self.model = CRNN(
+            number_class_symbols=self.tokenizer.get_num_chars(),
+            pretrained=False
+        )
+        self.model.load_state_dict(
+            torch.load(model_path, map_location=self.device))
+        self.model.to(self.device)
+
+        self.transforms = InferenceTransform(
+            height=config.get_image('height'),
+            width=config.get_image('width'),
+        )
+
+    def predict(self, images):
+        transformed_images = self.transforms(images)
+        pred = predict(
+            transformed_images, self.model, self.decoder, self.device)
+        return pred
 
 
 class OcrPredictor:
@@ -38,28 +93,23 @@ class OcrPredictor:
         device (str): The device for computation. Default is cuda.
     """
 
-    def __init__(self, model_path, config_path, lm_path='', device='cuda'):
+    def __init__(
+        self, model_path, config_path, lm_path='', device='cuda',
+        batch_size=1, onnx=False
+    ):
+        self.batch_size = batch_size
         config = Config(config_path)
-        self.tokenizer = Tokenizer(config.get('alphabet'))
-        self.device = torch.device(device)
-        self.batch_size = config.get_test('batch_size')
-        # load model
-        self.model = CRNN(
-            number_class_symbols=self.tokenizer.get_num_chars(),
-            pretrained=False
-        )
-        self.model.load_state_dict(torch.load(model_path, map_location=self.device))
-        self.model.to(self.device)
-
         if lm_path:
-            self.decoder = BeamSearcDecoder(config.get('alphabet'), lm_path)
+            decoder = BeamSearcDecoder(config.get('alphabet'), lm_path)
         else:
-            self.decoder = BestPathDecoder(config.get('alphabet'))
+            decoder = BestPathDecoder(config.get('alphabet'))
 
-        self.transforms = InferenceTransform(
-            height=config.get_image('height'),
-            width=config.get_image('width'),
-        )
+        if onnx and device == 'cpu':
+            self.model = OCRONNXCPUModel(model_path, config, decoder)
+        elif onnx and device == 'cuda':
+            raise Exception("ONNX runtime is only available on CPU devices")
+        else:
+            self.model = OCRTorchModel(model_path, config, decoder, device)
 
     def __call__(self, images):
         """
@@ -69,7 +119,7 @@ class OcrPredictor:
 
         Returns:
             pred (str or list of strs): The predicted text for one input
-                image, and a list with texts if there is a list of input images.
+                image, and a list with texts if there was a list of images.
         """
         if isinstance(images, (list, tuple)):
             one_image = False
@@ -83,9 +133,7 @@ class OcrPredictor:
         images_batches = split_list2batches(images, self.batch_size)
         pred = []
         for images_batch in images_batches:
-            images_batch = self.transforms(images_batch)
-            preds_batch = predict(
-                images_batch, self.model, self.decoder, self.device)
+            preds_batch = self.model.predict(images_batch)
             pred.extend(preds_batch)
 
         if one_image:

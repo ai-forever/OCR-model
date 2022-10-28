@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 from ctcdecode import CTCBeamDecoder
 
@@ -58,7 +59,15 @@ class Tokenizer:
         return dec_words
 
 
-class BeamSearcDecoder:
+class OCRDecoder:
+    def decode(self):
+        raise NotImplementedError
+
+    def onnx_cpu_decode(self):
+        raise NotImplementedError
+
+
+class BeamSearcDecoder(OCRDecoder):
     def __init__(self, alphabet, lm_path):
         self.tokenizer = Tokenizer(alphabet)
         char_map = self.tokenizer.char_map
@@ -77,7 +86,12 @@ class BeamSearcDecoder:
                blank_id=0,
                log_probs_input=True)
 
-    def __call__(self, output):
+    def decode_numpy(self, output):
+        # parlance/ctcdecode works only with torch arrays
+        output = torch.from_numpy(output)
+        return self.decode(output)
+
+    def decode(self, output):
         beam_results, _, _, out_lens = \
             self.decoder.decode(output.permute(1, 0, 2))
         encoded_texts = []
@@ -89,11 +103,17 @@ class BeamSearcDecoder:
         return text_preds
 
 
-class BestPathDecoder:
+class BestPathDecoder(OCRDecoder):
     def __init__(self, alphabet):
         self.tokenizer = Tokenizer(alphabet)
 
-    def __call__(self, output):
+    def decode_numpy(self, output):
+        pred = np.argmax(output, -1)
+        pred = np.transpose(pred, (1, 0))
+        text_preds = self.tokenizer.decode(pred)
+        return text_preds
+
+    def decode(self, output):
         pred = torch.argmax(output.detach().cpu(), -1).permute(1, 0).numpy()
         text_preds = self.tokenizer.decode(pred)
         return text_preds

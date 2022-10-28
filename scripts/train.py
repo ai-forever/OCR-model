@@ -35,7 +35,7 @@ def train_loop(
         images = images.to(DEVICE)
         batch_size = len(texts)
         output = model(images)
-        text_preds = decoder(output)
+        text_preds = decoder.decode(output)
         acc_avg.update(get_accuracy(texts, text_preds), batch_size)
         wer_avg.update(wer(texts, text_preds), batch_size)
         cer_avg.update(cer(texts, text_preds), batch_size)

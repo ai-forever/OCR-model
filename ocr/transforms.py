@@ -207,16 +207,21 @@ class RotateAndCrop:
 
 
 class InferenceTransform:
-    def __init__(self, height, width):
-        self.transforms = get_val_transforms(height, width)
+    def __init__(self, height, width, return_numpy=False):
+        self.transforms = torchvision.transforms.Compose([
+            RescalePaddingImage(height, width),
+            MoveChannels(to_channels_first=True),
+            Normalize(),
+        ])
+        self.return_numpy = return_numpy
+        self.to_tensor = ToTensor()
 
     def __call__(self, images):
-        transformed_images = []
-        for image in images:
-            image = self.transforms(image)
-            transformed_images.append(image)
-        transformed_tensor = torch.stack(transformed_images, 0)
-        return transformed_tensor
+        transformed_images = [self.transforms(image) for image in images]
+        transformed_array = np.stack(transformed_images, 0)
+        if not self.return_numpy:
+            transformed_array = self.to_tensor(transformed_array)
+        return transformed_array
 
 
 class CLAHE:
