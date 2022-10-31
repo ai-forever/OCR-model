@@ -2,6 +2,8 @@
 
 This is a model for Optical Character Recognition based on [CRNN-arhitecture](https://arxiv.org/abs/1507.05717) and [CTC loss](https://www.cs.toronto.edu/~graves/icml_2006.pdf).
 
+This is a part of [ReadingPipeline](https://github.com/ai-forever/ReadingPipeline) repo.
+
 ## Quick setup and start
 
 - Nvidia drivers >= 470, CUDA >= 11.4
@@ -79,3 +81,13 @@ python scripts/evaluate.py \
 
 If you want to use a beam search decoder with LM, you can pass lm_path arg with path to .arpa kenLM file.
 --lm_path path/to/the/language-model.arpa
+
+## ONNX for cpu
+
+You can convert Torch model to ONNX to speed up inference on cpu.
+
+```bash
+python scripts/torch2cpu_onnx.py \
+--config_path path/to/the/ocr_config.json \
+--model_path path/to/the/model-weights.ckpt
+```
