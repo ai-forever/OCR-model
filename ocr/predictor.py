@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 import onnxruntime as ort
 
 from ocr.transforms import InferenceTransform
@@ -114,29 +113,16 @@ class OcrPredictor:
     def __call__(self, images):
         """
         Args:
-            images (np.ndarray or list of np.ndarray): One image or list of
-                images in BGR format.
+            images (list of np.ndarray): A list of images in BGR format.
 
         Returns:
             pred (str or list of strs): The predicted text for one input
                 image, and a list with texts if there was a list of images.
         """
-        if isinstance(images, (list, tuple)):
-            one_image = False
-        elif isinstance(images, np.ndarray):
-            images = [images]
-            one_image = True
-        else:
-            raise Exception(f"Input must contain np.ndarray, "
-                            f"tuple or list, found {type(images)}.")
-
         images_batches = split_list2batches(images, self.batch_size)
         pred = []
         for images_batch in images_batches:
             preds_batch = self.model.predict(images_batch)
             pred.extend(preds_batch)
 
-        if one_image:
-            return pred[0]
-        else:
-            return pred
+        return pred
