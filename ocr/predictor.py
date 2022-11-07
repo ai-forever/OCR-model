@@ -35,11 +35,13 @@ class OCRModel:
 
 
 class OCRONNXCPUModel(OCRModel):
-    def __init__(self, model_path, config, decoder):
+    def __init__(self, model_path, config, num_threads, decoder):
         self.tokenizer = Tokenizer(config.get('alphabet'))
         self.decoder = decoder
-        # load model
-        self.model = ort.InferenceSession(model_path)
+        sess = ort.SessionOptions()
+        sess.intra_op_num_threads = num_threads
+        sess.inter_op_num_threads = num_threads
+        self.model = ort.InferenceSession(model_path, sess)
 
         self.transforms = InferenceTransform(
             height=config.get_image('height'),
@@ -93,8 +95,8 @@ class OcrPredictor:
     """
 
     def __init__(
-        self, model_path, config_path, lm_path='', device='cuda',
-        batch_size=1, onnx=False
+        self, model_path, config_path, num_threads, lm_path='',
+        device='cuda', batch_size=1, onnx=False
     ):
         self.batch_size = batch_size
         config = Config(config_path)
@@ -104,7 +106,8 @@ class OcrPredictor:
             decoder = BestPathDecoder(config.get('alphabet'))
 
         if onnx and device == 'cpu':
-            self.model = OCRONNXCPUModel(model_path, config, decoder)
+            self.model = OCRONNXCPUModel(
+                model_path, config, num_threads, decoder)
         elif onnx and device == 'cuda':
             raise Exception("ONNX runtime is only available on CPU devices")
         else:
