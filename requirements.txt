@@ -1,4 +1,4 @@
-numpy==1.23.3
+numpy==1.23.1
 torch>=1.6.0
 torchvision>=0.7.0
 opencv-python==4.6.0.66
@@ -9,5 +9,6 @@ scipy==1.4.1
 matplotlib==3.5.0
 Pillow==8.4.0
 onnxruntime==1.13.1
+openvino==2022.2.0
 albumentations==1.1.0
 ctcdecode @ git+https://github.com/parlance/ctcdecode
