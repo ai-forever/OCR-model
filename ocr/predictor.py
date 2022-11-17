@@ -1,5 +1,7 @@
 import torch
 import onnxruntime as ort
+import openvino.runtime as ov
+from enum import Enum
 
 from ocr.transforms import InferenceTransform
 from ocr.tokenizer import Tokenizer, BeamSearcDecoder, BestPathDecoder
@@ -59,6 +61,32 @@ class OCRONNXCPUModel(OCRModel):
         return pred
 
 
+class OCROpenVinoCPUModel(OCRModel):
+    def __init__(self, model_path, config, num_threads, decoder):
+        self.tokenizer = Tokenizer(config.get('alphabet'))
+        self.decoder = decoder
+        ie = ov.Core()
+        model_onnx = ie.read_model(model_path, "AUTO")
+        self.model = ie.compile_model(
+            model=model_onnx,
+            device_name="CPU",
+            config={"INFERENCE_NUM_THREADS": str(num_threads)}
+        )
+        self.transforms = InferenceTransform(
+            height=config.get_image('height'),
+            width=config.get_image('width'),
+            return_numpy=True
+        )
+
+    def predict(self, images):
+        transformed_images = self.transforms(images)
+        infer_request = self.model.create_infer_request()
+        infer_request.infer([transformed_images])
+        output = infer_request.get_output_tensor().data
+        pred = self.decoder.decode_numpy(output)
+        return pred
+
+
 class OCRTorchModel(OCRModel):
     def __init__(self, model_path, config, decoder, device='cuda'):
         self.tokenizer = Tokenizer(config.get('alphabet'))
@@ -85,18 +113,35 @@ class OCRTorchModel(OCRModel):
         return pred
 
 
+class RuntimeType(Enum):
+    ONNX = "ONNX"
+    OVINO = "OpenVino"
+    TORCH = "Pytorch"
+
+
+def validate_value_in_enum(value, enum_cls: Enum):
+    enum_values = [e.value for e in enum_cls]
+    if value not in enum_values:
+        raise Exception(f"{value} is not supported. "
+                        f"Allowed types are: {', '.join(enum_values)}")
+
+
 class OcrPredictor:
     """Make OCR prediction.
 
     Args:
         model_path (str): The path to the model weights.
         config_path (str): The path to the model config.
+        num_threads (int): The number of cpu threads to use
+            (in ONNX and OpenVino runtimes).
+        runtime (str): The runtime method of the model (Pytorch, ONNX or
+            OpenVino from the RuntimeType). Default is Pytorch.
         device (str): The device for computation. Default is cuda.
     """
 
     def __init__(
         self, model_path, config_path, num_threads, lm_path='',
-        device='cuda', batch_size=1, onnx=False
+        device='cuda', batch_size=1, runtime='Pytorch'
     ):
         self.batch_size = batch_size
         config = Config(config_path)
@@ -105,13 +150,24 @@ class OcrPredictor:
         else:
             decoder = BestPathDecoder(config.get('alphabet'))
 
-        if onnx and device == 'cpu':
+        validate_value_in_enum(runtime, RuntimeType)
+        if RuntimeType(runtime) is RuntimeType.TORCH:
+            self.model = OCRTorchModel(model_path, config, decoder, device)
+        elif (
+           RuntimeType(runtime) is RuntimeType.ONNX
+            and device == 'cpu'
+        ):
             self.model = OCRONNXCPUModel(
                 model_path, config, num_threads, decoder)
-        elif onnx and device == 'cuda':
-            raise Exception("ONNX runtime is only available on CPU devices")
+        elif (
+            RuntimeType(runtime) is RuntimeType.OVINO
+            and device == 'cpu'
+        ):
+            self.model = OCROpenVinoCPUModel(
+                model_path, config, num_threads, decoder)
         else:
-            self.model = OCRTorchModel(model_path, config, decoder, device)
+            raise Exception(f"Runtime type {runtime} with device {device} "
+                            "are not supported options.")
 
     def __call__(self, images):
         """
