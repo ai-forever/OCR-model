@@ -4,6 +4,10 @@ This is a model for Optical Character Recognition based on [CRNN-arhitecture](ht
 
 OCR-model is a part of [ReadingPipeline](https://github.com/ai-forever/ReadingPipeline) repo.
 
+## Demo
+
+In the [demo-OCR.ipynb](scripts/demo-OCR.ipynb) you can find an example of usage of OCR-model (you can run it in your Google Colab).
+
 ## Quick setup and start
 
 - Nvidia drivers >= 470, CUDA >= 11.4
