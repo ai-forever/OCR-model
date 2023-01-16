@@ -81,6 +81,23 @@ def get_data_from_image(data, image_id, class_names):
     return texts, bboxes, polygons
 
 
+def is_save_crop(remove_turned_crops, crop):
+    crop_h, crop_w = crop.shape[:2]
+    if (
+        remove_turned_crops
+        and crop_h > crop_w
+    ):
+        return False
+
+    if (
+        crop_h < 5
+        or crop_w < 5
+    ):
+        return False
+
+    return True
+
+
 def make_large_bbox_dataset(
     input_coco_json, image_root, class_names, bbox_scale_x, bbox_scale_y,
     save_dir, save_csv_name, remove_turned_crops, crop_by_mask,
@@ -115,13 +132,7 @@ def make_large_bbox_dataset(
                 cv2.drawContours(mask, [pts], -1, (255, 255, 255), -1, cv2.LINE_AA)
                 crop = cv2.bitwise_and(crop, crop, mask=mask)
 
-            save_crop = True
-            if (
-                remove_turned_crops
-                and crop_h > crop_w
-            ):
-                save_crop = False
-            if save_crop:
+            if is_save_crop(remove_turned_crops, crop):
                 crop_name = f'{image_folder_name}/{image_id}-{idx}.png'
                 crop_path = os.path.join(save_dir, crop_name)
                 cv2.imwrite(crop_path, crop)
