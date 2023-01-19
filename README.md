@@ -6,7 +6,7 @@ OCR-model is a part of [ReadingPipeline](https://github.com/ai-forever/ReadingPi
 
 ## Demo
 
-In the [demo-OCR.ipynb](scripts/demo-OCR.ipynb) you can find an example of usage of OCR-model (you can run it in your Google Colab).
+In the [demo](scripts/OCR-GoogleColab.ipynb) you can find an example of using of OCR-model (you can run it in your Google Colab).
 
 ## Quick setup and start
 
