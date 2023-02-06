@@ -28,10 +28,6 @@ If you don't want to use Docker, you can install dependencies via requirements.t
 
 You can change the [ocr_config.json](scripts/ocr_config.json) and set the necessary training and evaluating parameters: alphabet, image size, saving path, etc.
 
-You can set the "epoch_size" to `null` if you want to train/test on the entire dataset.
-
-It is also possible to specify several datasets for the train/validation/test, setting the probabilities for each dataset separately (the sum of probabilities can be greater than 1, since normalization occurs inside the processing). For example:
-
 ```
 "train": {
     "datasets": [
@@ -45,9 +41,13 @@ It is also possible to specify several datasets for the train/validation/test, s
         },
         ...
     ],
-    ...
+    "epoch_size": 10000,
+    "batch_size": 512
 }
 ```
+- `epoch_size` - the size of an epoch. If you set it to `null`, then the epoch size will be equal to the amount of samples in the all datasets.
+- It is also possible to specify several datasets for the train/validation/test, setting the probabilities for each dataset separately (the sum of `prob` can be greater than 1, since normalization occurs inside the processing).
+
 ## Prepare data
 
 Datasets must be pre-processed and have a single format: each dataset must contain a folder with images (crop images with text) and csv file with annotations. The csv file should contain two columns: "filename" with the relative path to the images (folder-name/image-name.png), and "text"-column with the image transcription.
