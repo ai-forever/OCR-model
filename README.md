@@ -71,7 +71,7 @@ python scripts/prepare_dataset.py \
 
 ## Training
 
-To train the model:
+To train the model run:
 
 ```bash
 python scripts/train.py --config_path path/to/the/ocr_config.json
@@ -79,7 +79,7 @@ python scripts/train.py --config_path path/to/the/ocr_config.json
 
 ## Evaluating
 
-To test the model:
+To test the model run:
 
 ```bash
 python scripts/evaluate.py \
